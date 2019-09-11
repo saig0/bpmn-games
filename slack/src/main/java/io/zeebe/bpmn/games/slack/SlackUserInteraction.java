@@ -6,13 +6,11 @@ import com.github.seratch.jslack.api.model.block.ActionsBlock;
 import com.github.seratch.jslack.api.model.block.LayoutBlock;
 import com.github.seratch.jslack.api.model.block.SectionBlock;
 import com.github.seratch.jslack.api.model.block.composition.MarkdownTextObject;
-import com.github.seratch.jslack.api.model.block.composition.OptionGroupObject;
 import com.github.seratch.jslack.api.model.block.composition.OptionObject;
 import com.github.seratch.jslack.api.model.block.composition.PlainTextObject;
 import com.github.seratch.jslack.api.model.block.element.BlockElement;
 import com.github.seratch.jslack.api.model.block.element.ButtonElement;
 import com.github.seratch.jslack.api.model.block.element.StaticSelectElement;
-import com.github.seratch.jslack.api.model.block.element.UsersSelectElement;
 import com.github.seratch.jslack.app_backend.interactive_messages.response.ActionResponse;
 import io.zeebe.bpmn.games.GameInteraction;
 import io.zeebe.bpmn.games.model.Card;
@@ -274,39 +272,37 @@ public class SlackUserInteraction implements GameInteraction {
   public CompletableFuture<String> selectPlayer(String player, List<String> otherPlayers) {
     final var channelId = session.getChannelId(player);
 
-    final var block1 =
+    final var blocks = new ArrayList<LayoutBlock>();
+
+    blocks.add(
         SectionBlock.builder()
             .text(MarkdownTextObject.builder().text("Choose a player to draw a card from:").build())
-            .build();
+            .build());
 
-    final List<BlockElement> playerButtons =
-        otherPlayers.stream()
-            .map(
-                otherPlayer -> {
-                  // FIXME player names are not displayed!
-                  final var plainText =
-                      PlainTextObject.builder()
-                          .text(SlackUtil.formatPlayer(otherPlayer))
-                          .emoji(true)
-                          .build();
+    otherPlayers.stream()
+        .forEach(
+            otherPlayer -> {
+              final var text =
+                  MarkdownTextObject.builder().text(SlackUtil.formatPlayer(otherPlayer)).build();
 
-                  return ButtonElement.builder()
-                      .text(plainText)
+              final var button =
+                  ButtonElement.builder()
+                      .text(PlainTextObject.builder().text("Choose").build())
                       .value(otherPlayer)
                       .actionId("select_player" + otherPlayer)
                       .build();
-                })
-            .collect(Collectors.toList());
 
-    final var block2 = ActionsBlock.builder().elements(playerButtons).build();
+              final var playerBlock =
+                  SectionBlock.builder().text(text).accessory(button).build();
+
+              blocks.add(playerBlock);
+            });
 
     final var future = new CompletableFuture<String>();
 
     try {
 
-      final var resp =
-          methodsClient.chatPostMessage(
-              req -> req.channel(channelId).blocks(List.of(block1, block2)));
+      final var resp = methodsClient.chatPostMessage(req -> req.channel(channelId).blocks(blocks));
 
     } catch (SlackApiException | IOException e) {
       throw new RuntimeException(e);
@@ -379,21 +375,21 @@ public class SlackUserInteraction implements GameInteraction {
 
     final var options = new ArrayList<OptionObject>();
 
-    options.add(OptionObject
-        .builder()
-        .text(PlainTextObject.builder().text("top").build())
-        .value(String.valueOf(0))
-        .build());
+    options.add(
+        OptionObject.builder()
+            .text(PlainTextObject.builder().text("top").build())
+            .value(String.valueOf(0))
+            .build());
 
-    options.add(OptionObject
-        .builder()
+    options.add(
+        OptionObject.builder()
             .text(PlainTextObject.builder().text("bottom").build())
             .value(String.valueOf(deckSize))
             .build());
 
     if (deckSize > 1) {
-      options.add(OptionObject
-          .builder()
+      options.add(
+          OptionObject.builder()
               .text(PlainTextObject.builder().text("random").build())
               .value(String.valueOf(ThreadLocalRandom.current().nextInt(deckSize)))
               .build());
@@ -402,8 +398,8 @@ public class SlackUserInteraction implements GameInteraction {
     IntStream.range(1, deckSize)
         .forEach(
             index -> {
-                  options.add(OptionObject
-                      .builder()
+              options.add(
+                  OptionObject.builder()
                       .text(
                           PlainTextObject.builder()
                               .text(String.format("top %d card", 1 + index))
@@ -412,11 +408,12 @@ public class SlackUserInteraction implements GameInteraction {
                       .build());
             });
 
-    final var positionSelect = StaticSelectElement
-        .builder()
-        .options(options)
-        .placeholder(PlainTextObject.builder().text("position").build())
-        .actionId("select_card").build();
+    final var positionSelect =
+        StaticSelectElement.builder()
+            .options(options)
+            .placeholder(PlainTextObject.builder().text("position").build())
+            .actionId("select_card")
+            .build();
 
     final var block2 = ActionsBlock.builder().elements(List.of(positionSelect)).build();
 
