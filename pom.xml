@@ -27,7 +27,7 @@
     <version.zeebe>0.21.0-alpha2</version.zeebe>
     <version.jslack>2.1.1</version.jslack>
     <version.spring>2.1.8.RELEASE</version.spring>
-    <version.log4j>2.11.1</version.log4j>
+    <version.log4j>2.13.3</version.log4j>
 
 
     <!-- release parent settings -->
